@@ -2,15 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useStore } from '../store';
-
-// Simulated admin credentials (in a real app, this would be handled by a backend)
-const ADMIN_CREDENTIALS = {
-  username: 'admin',
-  password: 'admin123',
-  role: 'counselor',
-  name: 'Dr. Smith',
-  id: 'admin-1'
-};
+import { supabase } from '../lib/supabaseClient'; // <-- import your supabase client
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -27,22 +19,50 @@ const Login = () => {
 
     try {
       if (isAdmin) {
-        // Check admin credentials
-        if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-          setCurrentUser(ADMIN_CREDENTIALS);
-          navigate('/dashboard');
+        // Query Supabase for admin credentials
+        const { data, error: dbError } = await supabase
+          .from('admin')
+          .select('*')
+          .eq('username', username)
+          .eq('password', password)
+          .single();
+
+        if (dbError || !data) {
+          setError('Invalid admin credentials');
           return;
         }
-        setError('Invalid admin credentials');
+        console.log(data); // Debug: check what is returned
+
+        setCurrentUser({
+          id: data.id,
+          username: data.username, // Make sure 'username' exists in your table
+          role: 'counselor',
+          name: data.username,
+        });
+        navigate('/dashboard');
         return;
       }
 
-      // Regular student login (simulated for now)
+      // Student login: check credentials in student table
+      const { data: student, error: studentError } = await supabase
+        .from('student')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .single();
+
+      if (studentError || !student) {
+        setError('Invalid username or password');
+        return;
+      }
+
       setCurrentUser({
-        id: '1',
-        name: username,
+        id: student.id,
+        name: student.full_name,
         role: 'student',
-        class: '5A'
+        class: student.class,
+        gender: student.gender,
+        username: student.username,
       });
       navigate('/topics');
     } catch (err) {

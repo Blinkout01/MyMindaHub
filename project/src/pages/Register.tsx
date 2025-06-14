@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
 import { useStore } from '../store';
+import { supabase } from '../lib/supabaseClient';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -29,13 +30,37 @@ const Register = () => {
     setError('');
 
     try {
-      // TODO: Implement actual registration
-      // For now, just simulate a successful registration
+      // Insert new student into Supabase
+      const { data, error: dbError } = await supabase
+        .from('student')
+        .insert([
+          {
+            full_name: formData.fullName,
+            username: formData.username,
+            password: formData.password,
+            gender: formData.gender.charAt(0).toUpperCase() + formData.gender.slice(1).toLowerCase(), // Ensure 'Male'/'Female'
+            class: formData.class
+          }
+        ])
+        .select()
+        .single();
+
+      if (dbError) {
+        if (dbError.code === '23505') {
+          setError('Username already exists.');
+        } else {
+          setError('Registration failed. Please try again.');
+        }
+        return;
+      }
+
       setCurrentUser({
-        id: '1',
-        name: formData.fullName,
+        id: data.id,
+        name: data.full_name,
         role: 'student',
-        class: formData.class
+        class: data.class,
+        gender: data.gender,
+        username: data.username,
       });
       navigate('/topics');
     } catch (err) {
