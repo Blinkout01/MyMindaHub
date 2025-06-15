@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckCircle2, XCircle, Trophy, ArrowRight } from 'lucide-react';
 import { useStore } from '../store';
+import { supabase } from '../lib/supabaseClient'; 
 
 const quizData = {
   emotions: {
@@ -162,7 +163,12 @@ const Quiz = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { updateProgress } = useStore();
+
+  // TODO: Replace with actual authenticated user id
+  const student_id = 1;
 
   if (!topicId || !quizData[topicId as keyof typeof quizData]) {
     return <div>Quiz not found</div>;
@@ -185,7 +191,7 @@ const Quiz = () => {
     }
   };
 
-  const calculateResults = () => {
+  const calculateResults = async () => {
     const correctAnswers = selectedAnswers.reduce((count, answer, index) => {
       return count + (answer === quiz.questions[index].correctAnswer ? 1 : 0);
     }, 0);
@@ -200,6 +206,26 @@ const Quiz = () => {
       },
       assessmentResults: {}
     });
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    // Save to Supabase
+    const { error } = await supabase.from('quiz_results').insert([
+      {
+        student_id,
+        topic_id: topicId,
+        score_percentage: ((correctAnswers / quiz.questions.length) * 100).toFixed(2),
+        correct_answers: correctAnswers,
+        total_questions: quiz.questions.length,
+        selected_answers: JSON.stringify(selectedAnswers)
+      }
+    ]);
+
+    setIsSaving(false);
+    if (error) {
+      setSaveError('Failed to save quiz results. Please try again.');
+    }
 
     setShowResults(true);
   };
@@ -224,6 +250,9 @@ const Quiz = () => {
               You got {correctAnswers} out of {quiz.questions.length} questions correct!
             </p>
           </div>
+
+          {isSaving && <p className="text-gray-500">Saving your results...</p>}
+          {saveError && <p className="text-red-500">{saveError}</p>}
 
           <div className="flex justify-center space-x-4">
             <button
