@@ -272,11 +272,11 @@ const Home = () => {
       {/* Fun Footer */}
       <div className="bg-gradient-to-r from-purple-600 via-pink-500 to-blue-500 text-white py-8">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="text-4xl mb-4">🌈✨🦄✨🌈</div>
+          <div className="text-2xl mb-4">Wisdom Corner</div>
           <p className="text-xl font-medium">
             Remember: You are AMAZING, BRAVE, and LOVED! 💖
           </p>
-          <div className="text-4xl mt-4 animate-pulse">⭐🌟✨🌟⭐</div>
+          <div className="text-2xl mt-4 animate-pulse">⭐🌟✨🌟⭐</div>
         </div>
       </div>
     </div>

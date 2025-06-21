@@ -37,6 +37,7 @@ export interface User {
   email?: string;
   role: 'student' | 'counselor';
   class: string;
+  gender?: string;
 }
 
 export interface StudentProgress {

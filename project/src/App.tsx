@@ -10,7 +10,7 @@ import Dashboard from './pages/Dashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import InteractiveGames from './pages/InteractiveGames';
 import Login from './pages/Login';
-import Register from './pages/Register';
+import Register from './pages/SignUp';
 import { useStore } from './store';
 
 // Protected Route wrapper component

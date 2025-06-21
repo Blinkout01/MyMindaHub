@@ -24,7 +24,7 @@ const Dashboard = () => {
   const [userInfo, setUserInfo] = useState({
     name: '',
     email: '',
-    department: 'Student Support Services'
+    department: 'Counseling',
   });
   const { currentUser, studentProgress, setCurrentUser } = useStore();
   const navigate = useNavigate();

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Brain, Heart, Shield, User, Calendar, BookOpen, ClipboardCheck, History, MessageCircle, Gamepad2, Star, Sparkles } from 'lucide-react';
+import { Brain, Heart, Shield, User, Calendar, BookOpen, ClipboardCheck, History, MessageCircle, Gamepad2, Star, Sparkles, BarChart3 } from 'lucide-react';
 import { useStore } from '../store';
+import ProgressTracker from '../components/ProgressTracker';
 
 const StudentDashboard = () => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'progress' | 'checkin' | 'profile'>('overview');
   const { currentUser, setCurrentUser } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const [userInfo, setUserInfo] = useState({
@@ -313,135 +315,40 @@ const StudentDashboard = () => {
     return steps[checkInStep];
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 py-8">
-      {/* Floating Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-10 animate-bounce delay-300">
-          <Star className="h-5 w-5 text-yellow-400 animate-pulse" />
-        </div>
-        <div className="absolute bottom-32 left-16 animate-bounce delay-700">
-          <Sparkles className="h-6 w-6 text-pink-400 animate-pulse" />
-        </div>
-        <div className="absolute top-1/2 right-20 animate-bounce delay-1000">
-          <Star className="h-4 w-4 text-blue-400 animate-pulse" />
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 relative z-10">
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-4 animate-bounce">🎓✨</div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            Your Amazing Dashboard!
-          </h1>
-          <p className="text-xl text-gray-600 mt-2">Welcome back, superstar! 🌟</p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Personal Information */}
-          <div className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-3xl blur opacity-75"></div>
-            <div className="relative bg-gradient-to-br from-white to-blue-50 rounded-3xl border-4 border-blue-200 p-6 shadow-xl">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-100 rounded-full">
-                    <User className="h-6 w-6 text-blue-600" />
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Personal Information */}
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-3xl blur opacity-75"></div>
+              <div className="relative bg-gradient-to-br from-white to-blue-50 rounded-3xl border-4 border-blue-200 p-6 shadow-xl">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-100 rounded-full">
+                      <User className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-blue-800">My Info 👤</h2>
                   </div>
-                  <h2 className="text-2xl font-bold text-blue-800">My Info 👤</h2>
+                  <button
+                    onClick={() => setActiveTab('profile')}
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-full font-bold hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105"
+                  >
+                    Edit ✏️
+                  </button>
                 </div>
-                <button
-                  onClick={() => isEditing ? handleSaveInfo() : setIsEditing(true)}
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-full font-bold hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105"
-                >
-                  {isEditing ? 'Save ✅' : 'Edit ✏️'}
-                </button>
-              </div>
 
-              <div className="space-y-4">
-                {isEditing ? (
-                  <>
-                    <div>
-                      <label className="block text-lg font-bold text-gray-700 mb-1 flex items-center space-x-2">
-                        <div className="text-xl">👤</div>
-                        <span>Name</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={userInfo.name}
-                        onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
-                        className="w-full px-3 py-2 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-300 bg-gradient-to-r from-white to-blue-50"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-lg font-bold text-gray-700 mb-1 flex items-center space-x-2">
-                        <div className="text-xl">📧</div>
-                        <span>Email</span>
-                      </label>
-                      <input
-                        type="email"
-                        value={userInfo.email}
-                        onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
-                        className="w-full px-3 py-2 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-300 bg-gradient-to-r from-white to-blue-50"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-lg font-bold text-gray-700 mb-1 flex items-center space-x-2">
-                        <div className="text-xl">🏫</div>
-                        <span>Class</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={userInfo.class}
-                        onChange={(e) => setUserInfo({ ...userInfo, class: e.target.value })}
-                        className="w-full px-3 py-2 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-300 bg-gradient-to-r from-white to-blue-50"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-lg font-bold text-gray-700 mb-1 flex items-center space-x-2">
-                        <div className="text-xl">👫</div>
-                        <span>Gender</span>
-                      </label>
-                      <select
-                        value={userInfo.gender}
-                        onChange={(e) => setUserInfo({ ...userInfo, gender: e.target.value })}
-                        className="w-full px-3 py-2 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-300 bg-gradient-to-r from-white to-blue-50"
-                      >
-                        <option value="">Select gender</option>
-                        <option value="male">Male 👦</option>
-                        <option value="female">Female 👧</option>
-                        <option value="other">Other</option>
-                        <option value="prefer-not-to-say">Prefer not to say</option>
-                      </select>
-                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="flex items-center space-x-2"><span className="text-xl">👤</span><span className="font-bold">Name:</span> <span>{userInfo.name}</span></p>
-                    <p className="flex items-center space-x-2"><span className="text-xl">📧</span><span className="font-bold">Email:</span> <span>{userInfo.email}</span></p>
-                    <p className="flex items-center space-x-2"><span className="text-xl">🏫</span><span className="font-bold">Class:</span> <span>{userInfo.class}</span></p>
-                    <p className="flex items-center space-x-2"><span className="text-xl">👫</span><span className="font-bold">Gender:</span> <span>{userInfo.gender || 'Not specified'}</span></p>
-                  </div>
-                )}
+                <div className="space-y-3">
+                  <p className="flex items-center space-x-2"><span className="text-xl">👤</span><span className="font-bold">Name:</span> <span>{userInfo.name}</span></p>
+                  <p className="flex items-center space-x-2"><span className="text-xl">📧</span><span className="font-bold">Email:</span> <span>{userInfo.email}</span></p>
+                  <p className="flex items-center space-x-2"><span className="text-xl">🏫</span><span className="font-bold">Class:</span> <span>{userInfo.class}</span></p>
+                  <p className="flex items-center space-x-2"><span className="text-xl">👫</span><span className="font-bold">Gender:</span> <span>{userInfo.gender || 'Not specified'}</span></p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Weekly Wellness Check-in */}
-          <div className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-pink-400 to-purple-400 rounded-3xl blur opacity-75"></div>
-            <div className="relative bg-gradient-to-br from-white to-pink-50 rounded-3xl border-4 border-pink-200 p-6 shadow-xl">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-pink-100 rounded-full">
-                  <Calendar className="h-6 w-6 text-pink-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-pink-800">Weekly Check-in 📅</h2>
-              </div>
-              {renderWeeklyCheckIn()}
-            </div>
-          </div>
-
-          {/* Learning Topics */}
-          <div className="md:col-span-2">
+            {/* Learning Topics */}
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 rounded-3xl blur opacity-75"></div>
               <div className="relative bg-gradient-to-br from-white to-green-50 rounded-3xl border-4 border-green-200 p-6 shadow-xl">
@@ -449,36 +356,56 @@ const StudentDashboard = () => {
                   <div className="p-2 bg-green-100 rounded-full">
                     <BookOpen className="h-6 w-6 text-green-600" />
                   </div>
-                  <h2 className="text-2xl font-bold text-green-800">Learning & Fun Activities 🎯</h2>
+                  <h2 className="text-2xl font-bold text-green-800">Quick Access 🎯</h2>
                 </div>
-                <div className="grid md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 gap-4">
                   <Link to="/topics/emotions" className="group p-4 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 border-3 border-blue-300 hover:from-blue-200 hover:to-blue-300 transition-all duration-300 transform hover:scale-105 hover:shadow-xl">
-                    <Brain className="h-10 w-10 text-blue-600 mb-3 group-hover:animate-bounce" />
-                    <h3 className="font-bold mb-2 text-blue-800">Understanding Emotions</h3>
-                    <p className="text-sm text-gray-700">Learn about different feelings! 😊</p>
+                    <Brain className="h-8 w-8 text-blue-600 mb-2 group-hover:animate-bounce" />
+                    <h3 className="font-bold mb-1 text-blue-800 text-sm">Understanding Emotions</h3>
+                    <p className="text-xs text-gray-700">Learn about feelings! 😊</p>
                   </Link>
                   <Link to="/topics/stress" className="group p-4 rounded-2xl bg-gradient-to-br from-pink-100 to-pink-200 border-3 border-pink-300 hover:from-pink-200 hover:to-pink-300 transition-all duration-300 transform hover:scale-105 hover:shadow-xl">
-                    <Heart className="h-10 w-10 text-pink-600 mb-3 group-hover:animate-bounce" />
-                    <h3 className="font-bold mb-2 text-pink-800">Stress Management</h3>
-                    <p className="text-sm text-gray-700">Stay calm and relaxed! 🧘‍♀️</p>
+                    <Heart className="h-8 w-8 text-pink-600 mb-2 group-hover:animate-bounce" />
+                    <h3 className="font-bold mb-1 text-pink-800 text-sm">Stress Management</h3>
+                    <p className="text-xs text-gray-700">Stay calm! 🧘‍♀️</p>
                   </Link>
                   <Link to="/topics/bullying" className="group p-4 rounded-2xl bg-gradient-to-br from-purple-100 to-purple-200 border-3 border-purple-300 hover:from-purple-200 hover:to-purple-300 transition-all duration-300 transform hover:scale-105 hover:shadow-xl">
-                    <Shield className="h-10 w-10 text-purple-600 mb-3 group-hover:animate-bounce" />
-                    <h3 className="font-bold mb-2 text-purple-800">Bullying Prevention</h3>
-                    <p className="text-sm text-gray-700">Stay safe and help others! 🛡️</p>
+                    <Shield className="h-8 w-8 text-purple-600 mb-2 group-hover:animate-bounce" />
+                    <h3 className="font-bold mb-1 text-purple-800 text-sm">Bullying Prevention</h3>
+                    <p className="text-xs text-gray-700">Stay safe! 🛡️</p>
                   </Link>
                   <Link to="/interactive-games" className="group p-4 rounded-2xl bg-gradient-to-br from-green-100 to-green-200 border-3 border-green-300 hover:from-green-200 hover:to-green-300 transition-all duration-300 transform hover:scale-105 hover:shadow-xl">
-                    <Gamepad2 className="h-10 w-10 text-green-600 mb-3 group-hover:animate-bounce" />
-                    <h3 className="font-bold mb-2 text-green-800">Interactive Games</h3>
-                    <p className="text-sm text-gray-700">Fun learning games! 🎮</p>
+                    <Gamepad2 className="h-8 w-8 text-green-600 mb-2 group-hover:animate-bounce" />
+                    <h3 className="font-bold mb-1 text-green-800 text-sm">Interactive Games</h3>
+                    <p className="text-xs text-gray-700">Fun games! 🎮</p>
                   </Link>
                 </div>
               </div>
             </div>
           </div>
+        );
 
-          {/* Previous Check-ins */}
-          <div className="md:col-span-2">
+      case 'progress':
+        return <ProgressTracker />;
+
+      case 'checkin':
+        return (
+          <div className="space-y-8">
+            {/* Weekly Check-in */}
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-pink-400 to-purple-400 rounded-3xl blur opacity-75"></div>
+              <div className="relative bg-gradient-to-br from-white to-pink-50 rounded-3xl border-4 border-pink-200 p-6 shadow-xl">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="p-2 bg-pink-100 rounded-full">
+                    <Calendar className="h-6 w-6 text-pink-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-pink-800">Weekly Check-in 📅</h2>
+                </div>
+                {renderWeeklyCheckIn()}
+              </div>
+            </div>
+
+            {/* Previous Check-ins */}
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-3xl blur opacity-75"></div>
               <div className="relative bg-gradient-to-br from-white to-yellow-50 rounded-3xl border-4 border-yellow-200 p-6 shadow-xl">
@@ -601,7 +528,197 @@ const StudentDashboard = () => {
               </div>
             </div>
           </div>
+        );
+
+      case 'profile':
+        return (
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-3xl blur opacity-75"></div>
+            <div className="relative bg-gradient-to-br from-white to-blue-50 rounded-3xl border-4 border-blue-200 p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-full">
+                    <User className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-blue-800">My Profile 👤</h2>
+                </div>
+                {!isEditing && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-full font-bold hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105"
+                  >
+                    Edit ✏️
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                {isEditing ? (
+                  <>
+                    <div>
+                      <label className="block text-lg font-bold text-gray-700 mb-1 flex items-center space-x-2">
+                        <div className="text-xl">👤</div>
+                        <span>Name</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={userInfo.name}
+                        onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
+                        className="w-full px-3 py-2 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-300 bg-gradient-to-r from-white to-blue-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-lg font-bold text-gray-700 mb-1 flex items-center space-x-2">
+                        <div className="text-xl">📧</div>
+                        <span>Email</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={userInfo.email}
+                        onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
+                        className="w-full px-3 py-2 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-300 bg-gradient-to-r from-white to-blue-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-lg font-bold text-gray-700 mb-1 flex items-center space-x-2">
+                        <div className="text-xl">🏫</div>
+                        <span>Class</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={userInfo.class}
+                        onChange={(e) => setUserInfo({ ...userInfo, class: e.target.value })}
+                        className="w-full px-3 py-2 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-300 bg-gradient-to-r from-white to-blue-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-lg font-bold text-gray-700 mb-1 flex items-center space-x-2">
+                        <div className="text-xl">👫</div>
+                        <span>Gender</span>
+                      </label>
+                      <select
+                        value={userInfo.gender}
+                        onChange={(e) => setUserInfo({ ...userInfo, gender: e.target.value })}
+                        className="w-full px-3 py-2 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-300 bg-gradient-to-r from-white to-blue-50"
+                      >
+                        <option value="">Select gender</option>
+                        <option value="male">Male 👦</option>
+                        <option value="female">Female 👧</option>
+                        <option value="other">Other</option>
+                        <option value="prefer-not-to-say">Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div className="flex space-x-4 pt-4">
+                      <button
+                        onClick={handleSaveInfo}
+                        className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-6 py-2 rounded-full font-bold hover:from-green-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-105"
+                      >
+                        Save Changes ✅
+                      </button>
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="bg-gradient-to-r from-gray-400 to-gray-500 text-white px-6 py-2 rounded-full font-bold hover:from-gray-500 hover:to-gray-600 transition-all duration-300"
+                      >
+                        Cancel ❌
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="flex items-center space-x-2"><span className="text-xl">👤</span><span className="font-bold">Name:</span> <span>{userInfo.name}</span></p>
+                    <p className="flex items-center space-x-2"><span className="text-xl">📧</span><span className="font-bold">Email:</span> <span>{userInfo.email}</span></p>
+                    <p className="flex items-center space-x-2"><span className="text-xl">🏫</span><span className="font-bold">Class:</span> <span>{userInfo.class}</span></p>
+                    <p className="flex items-center space-x-2"><span className="text-xl">👫</span><span className="font-bold">Gender:</span> <span>{userInfo.gender || 'Not specified'}</span></p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 py-8">
+      {/* Floating Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 right-10 animate-bounce delay-300">
+          <Star className="h-5 w-5 text-yellow-400 animate-pulse" />
         </div>
+        <div className="absolute bottom-32 left-16 animate-bounce delay-700">
+          <Sparkles className="h-6 w-6 text-pink-400 animate-pulse" />
+        </div>
+        <div className="absolute top-1/2 right-20 animate-bounce delay-1000">
+          <Star className="h-4 w-4 text-blue-400 animate-pulse" />
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 relative z-10">
+        <div className="text-center mb-8">
+          <div className="text-5xl mb-4 animate-bounce">🎓✨</div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            Your Amazing Dashboard!
+          </h1>
+          <p className="text-xl text-gray-600 mt-2">Welcome back, superstar! 🌟</p>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-2xl p-2 shadow-xl border-4 border-purple-200">
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+                  activeTab === 'overview'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <User className="h-5 w-5" />
+                <span>Overview</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('progress')}
+                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+                  activeTab === 'progress'
+                    ? 'bg-gradient-to-r from-green-500 to-blue-500 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <BarChart3 className="h-5 w-5" />
+                <span>Progress</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('checkin')}
+                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+                  activeTab === 'checkin'
+                    ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Calendar className="h-5 w-5" />
+                <span>Check-in</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+                  activeTab === 'profile'
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <User className="h-5 w-5" />
+                <span>Profile</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {renderTabContent()}
       </div>
     </div>
   );

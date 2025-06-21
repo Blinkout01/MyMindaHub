@@ -124,7 +124,7 @@ const Topics = () => {
         {/* Fun Encouragement Section */}
         <div className="mt-16 text-center">
           <div className="bg-gradient-to-r from-yellow-100 via-pink-100 to-purple-100 rounded-3xl p-8 border-4 border-purple-200 shadow-xl">
-            <div className="text-5xl mb-4">🌈✨</div>
+            <div className="text-4xl mb-4">Wisdom Corner</div>
             <h3 className="text-2xl font-bold text-purple-800 mb-4">
               You're Amazing!
             </h3>

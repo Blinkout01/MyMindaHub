@@ -49,7 +49,7 @@ const Register = () => {
         if (dbError.code === '23505') {
           setError('Username already exists.');
         } else {
-          setError('Registration failed. Please try again.');
+          setError('Sign up failed. Please try again.');
         }
         return;
       }
@@ -64,7 +64,7 @@ const Register = () => {
       });
       navigate('/topics');
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      setError('Sign up failed. Please try again.');
     }
   };
 

@@ -178,57 +178,59 @@ const Quiz = () => {
   const question = quiz.questions[currentQuestion];
 
   const handleAnswerSelect = (answerIndex: number) => {
-    const newAnswers = [...selectedAnswers];
-    newAnswers[currentQuestion] = answerIndex;
-    setSelectedAnswers(newAnswers);
+  const newAnswers = [...selectedAnswers];
+  newAnswers[currentQuestion] = answerIndex;
+  setSelectedAnswers(newAnswers);
 
-    if (currentQuestion < quiz.questions.length - 1) {
-      setTimeout(() => {
-        setCurrentQuestion(currentQuestion + 1);
-      }, 500);
-    } else {
-      calculateResults();
-    }
-  };
+  if (currentQuestion < quiz.questions.length - 1) {
+    setTimeout(() => {
+      setCurrentQuestion(currentQuestion + 1);
+    }, 500);
+  } else {
+    // Delay calculateResults slightly to allow state update
+    setTimeout(() => {
+      calculateResults(newAnswers); // Pass the updated answers manually
+    }, 500);
+  }
+};
 
-  const calculateResults = async () => {
-    const correctAnswers = selectedAnswers.reduce((count, answer, index) => {
-      return count + (answer === quiz.questions[index].correctAnswer ? 1 : 0);
-    }, 0);
+  const calculateResults = async (answers: number[]) => {
+  const correctAnswers = answers.reduce((count, answer, index) => {
+    return count + (answer === quiz.questions[index].correctAnswer ? 1 : 0);
+  }, 0);
 
-    updateProgress({
-      userId: '1', // This should come from authentication
-      topicProgress: {
-        [topicId]: {
-          completed: true,
-          quizScore: (correctAnswers / quiz.questions.length) * 100
-        }
-      },
-      assessmentResults: {}
-    });
-
-    setIsSaving(true);
-    setSaveError(null);
-
-    // Save to Supabase
-    const { error } = await supabase.from('quiz_results').insert([
-      {
-        student_id,
-        topic_id: topicId,
-        score_percentage: ((correctAnswers / quiz.questions.length) * 100).toFixed(2),
-        correct_answers: correctAnswers,
-        total_questions: quiz.questions.length,
-        selected_answers: JSON.stringify(selectedAnswers)
+  updateProgress({
+    userId: '1',
+    topicProgress: {
+      [topicId]: {
+        completed: true,
+        quizScore: (correctAnswers / quiz.questions.length) * 100
       }
-    ]);
+    },
+    assessmentResults: {}
+  });
 
-    setIsSaving(false);
-    if (error) {
-      setSaveError('Failed to save quiz results. Please try again.');
+  setIsSaving(true);
+  setSaveError(null);
+
+  const { error } = await supabase.from('quiz_results').insert([
+    {
+      student_id,
+      topic_id: topicId,
+      score_percentage: ((correctAnswers / quiz.questions.length) * 100).toFixed(2),
+      correct_answers: correctAnswers,
+      total_questions: quiz.questions.length,
+      selected_answers: answers
     }
+  ]);
 
-    setShowResults(true);
-  };
+  setIsSaving(false);
+  if (error) {
+    setSaveError('Failed to save quiz results. Please try again.');
+  }
+
+  setShowResults(true);
+};
 
   if (showResults) {
     const correctAnswers = selectedAnswers.reduce((count, answer, index) => {
