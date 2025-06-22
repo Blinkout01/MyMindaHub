@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { Brain, Heart, Shield, User, Calendar, BookOpen, ClipboardCheck, History, MessageCircle, Gamepad2, Star, Sparkles, BarChart3 } from 'lucide-react';
 import { useStore } from '../store';
 import ProgressTracker from '../components/ProgressTracker';
+import { supabase } from '../lib/supabaseClient';
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'progress' | 'checkin' | 'profile'>('overview');
-  const { currentUser, setCurrentUser } = useStore();
+  const { currentUser, fetchStudentProgress, updateStudentProgress } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const [userInfo, setUserInfo] = useState({
     name: currentUser?.name || '',
@@ -15,7 +16,14 @@ const StudentDashboard = () => {
     gender: currentUser?.gender || ''
   });
   const [checkInStep, setCheckInStep] = useState(0);
-  const [checkInAnswers, setCheckInAnswers] = useState({
+  const [checkInAnswers, setCheckInAnswers] = useState<{
+    weekFeeling: string;
+    mainEmotions: string[];
+    helpfulThings: string[];
+    hadIssues: boolean;
+    issueDescription: string;
+    needsHelp: string;
+  }>({
     weekFeeling: '',
     mainEmotions: [],
     helpfulThings: [],
@@ -24,26 +32,77 @@ const StudentDashboard = () => {
     needsHelp: ''
   });
 
-  const [previousCheckIns] = useState([
-    {
-      date: '2024-03-20',
-      weekFeeling: 'Good',
-      mainEmotions: ['Happy', 'Tired'],
-      helpfulThings: ['Playing or exercising', 'Rest or sleep'],
-      hadIssues: true,
-      issueDescription: 'I had trouble with my math homework and felt a bit overwhelmed.',
-      needsHelp: 'No, I\'m okay'
-    },
-    {
-      date: '2024-03-13',
-      weekFeeling: 'Okay',
-      mainEmotions: ['Stressed', 'Confused'],
-      helpfulThings: ['Talking to friends', 'Games or hobbies'],
-      hadIssues: true,
-      issueDescription: 'I had a small argument with my friend, but we resolved it.',
-      needsHelp: 'Maybe'
+  // Dynamic previous check-ins
+  const [previousCheckIns, setPreviousCheckIns] = useState<Array<{
+    date: string;
+    weekFeeling: string;
+    mainEmotions: string[];
+    helpfulThings: string[];
+    hadIssues: boolean;
+    issueDescription: string;
+    needsHelp: string;
+  }>>([]);
+
+  // Fetch previous check-ins from Supabase
+  React.useEffect(() => {
+    const fetchCheckIns = async () => {
+      if (!currentUser?.id) return;
+      const { data, error } = await supabase
+        .from('weekly_checkins')
+        .select('*')
+        .eq('student_id', currentUser.id)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setPreviousCheckIns(data.map((row: any) => ({
+          date: row.created_at,
+          weekFeeling: row.week_feeling,
+          mainEmotions: row.main_emotions,
+          helpfulThings: row.helpful_things,
+          hadIssues: row.had_issues,
+          issueDescription: row.issue_description,
+          needsHelp: row.needs_help
+        })));
+      }
+    };
+    fetchCheckIns();
+  }, [currentUser]);
+
+  // Submit check-in to Supabase
+  const submitCheckIn = async () => {
+    if (!currentUser?.id) return;
+    const { data, error } = await supabase.from('weekly_checkins').insert([
+      {
+        student_id: currentUser.id,
+        week_feeling: checkInAnswers.weekFeeling,
+        main_emotions: checkInAnswers.mainEmotions,
+        helpful_things: checkInAnswers.helpfulThings,
+        had_issues: checkInAnswers.hadIssues,
+        issue_description: checkInAnswers.issueDescription,
+        needs_help: checkInAnswers.needsHelp
+      }
+    ]);
+    if (error) {
+      console.error('❌ Error saving check-in:', error.message);
+    } else {
+      // Refetch check-ins after successful submission
+      const { data: newData, error: fetchError } = await supabase
+        .from('weekly_checkins')
+        .select('*')
+        .eq('student_id', currentUser.id)
+        .order('created_at', { ascending: false });
+      if (!fetchError && newData) {
+        setPreviousCheckIns(newData.map((row: any) => ({
+          date: row.created_at,
+          weekFeeling: row.week_feeling,
+          mainEmotions: row.main_emotions,
+          helpfulThings: row.helpful_things,
+          hadIssues: row.had_issues,
+          issueDescription: row.issue_description,
+          needsHelp: row.needs_help
+        })));
+      }
     }
-  ]);
+  };
 
   const handleSaveInfo = () => {
     setCurrentUser({
@@ -57,13 +116,11 @@ const StudentDashboard = () => {
     setCheckInAnswers(prev => {
       const emotions = [...prev.mainEmotions];
       const index = emotions.indexOf(emotion);
-      
       if (index === -1 && emotions.length < 2) {
         emotions.push(emotion);
       } else if (index !== -1) {
         emotions.splice(index, 1);
       }
-      
       return { ...prev, mainEmotions: emotions };
     });
   };
@@ -72,16 +129,15 @@ const StudentDashboard = () => {
     setCheckInAnswers(prev => {
       const things = [...prev.helpfulThings];
       const index = things.indexOf(thing);
-      
       if (index === -1) {
         things.push(thing);
       } else {
         things.splice(index, 1);
       }
-      
       return { ...prev, helpfulThings: things };
     });
   };
+
 
   const renderWeeklyCheckIn = () => {
     const steps = [
@@ -301,7 +357,18 @@ const StudentDashboard = () => {
         <h3 className="text-3xl font-bold text-purple-800">Thank you for checking in!</h3>
         <p className="text-xl text-gray-600">You're strong and amazing! See you next week! 💪✨</p>
         <button
-          onClick={() => setCheckInStep(0)}
+          onClick={async () => {
+            await submitCheckIn(); // Save to Supabase
+            setCheckInStep(0); // Reset UI
+            setCheckInAnswers({
+              weekFeeling: '',
+              mainEmotions: [],
+              helpfulThings: [],
+              hadIssues: false,
+              issueDescription: '',
+              needsHelp: ''
+            });
+          }}
           className="bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 text-white px-10 py-4 rounded-full font-bold text-xl hover:from-green-600 hover:via-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-110 shadow-xl"
         >
           <div className="flex items-center space-x-2">
@@ -459,7 +526,7 @@ const StudentDashboard = () => {
                             <span>2. What did you feel most this week?</span>
                           </h4>
                           <div className="flex gap-2">
-                            {checkIn.mainEmotions.map((emotion, i) => (
+                            {checkIn.mainEmotions.map((emotion: string, i: number) => (
                               <span key={i} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium border-2 border-purple-300">
                                 {emotion}
                               </span>
@@ -474,7 +541,7 @@ const StudentDashboard = () => {
                             <span>3. What helped you feel better?</span>
                           </h4>
                           <div className="flex flex-wrap gap-2">
-                            {checkIn.helpfulThings.map((thing, i) => (
+                            {checkIn.helpfulThings.map((thing: string, i: number) => (
                               <span key={i} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium border-2 border-blue-300">
                                 {thing}
                               </span>
@@ -624,7 +691,7 @@ const StudentDashboard = () => {
                     </div>
                   </>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <p className="flex items-center space-x-2"><span className="text-xl">👤</span><span className="font-bold">Name:</span> <span>{userInfo.name}</span></p>
                     <p className="flex items-center space-x-2"><span className="text-xl">📧</span><span className="font-bold">Email:</span> <span>{userInfo.email}</span></p>
                     <p className="flex items-center space-x-2"><span className="text-xl">🏫</span><span className="font-bold">Class:</span> <span>{userInfo.class}</span></p>
@@ -635,90 +702,41 @@ const StudentDashboard = () => {
             </div>
           </div>
         );
-
-      default:
-        return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 py-8">
-      {/* Floating Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-10 animate-bounce delay-300">
-          <Star className="h-5 w-5 text-yellow-400 animate-pulse" />
-        </div>
-        <div className="absolute bottom-32 left-16 animate-bounce delay-700">
-          <Sparkles className="h-6 w-6 text-pink-400 animate-pulse" />
-        </div>
-        <div className="absolute top-1/2 right-20 animate-bounce delay-1000">
-          <Star className="h-4 w-4 text-blue-400 animate-pulse" />
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 relative z-10">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 py-8">
+      <div className="max-w-6xl mx-auto px-4">
+        {/* Header */}
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4 animate-bounce">🎓✨</div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            Your Amazing Dashboard!
-          </h1>
-          <p className="text-xl text-gray-600 mt-2">Welcome back, superstar! 🌟</p>
+          <h1 className="text-4xl font-extrabold text-purple-800 mb-2">Student Dashboard</h1>
+          <p className="text-lg text-gray-700">Welcome back, {currentUser?.name}!</p>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-white rounded-2xl p-2 shadow-xl border-4 border-purple-200">
-            <div className="flex space-x-2">
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="flex justify-center space-x-4">
+            {['overview', 'progress', 'checkin', 'profile'].map(tab => (
               <button
-                onClick={() => setActiveTab('overview')}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
-                  activeTab === 'overview'
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={`px-4 py-2 rounded-full font-semibold transition-all duration-300
+                  ${activeTab === tab
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
+                    : 'bg-white text-purple-700 hover:bg-purple-50'
+                  }`}
               >
-                <User className="h-5 w-5" />
-                <span>Overview</span>
+                {tab === 'checkin' ? 'Weekly Check-in' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
-              <button
-                onClick={() => setActiveTab('progress')}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
-                  activeTab === 'progress'
-                    ? 'bg-gradient-to-r from-green-500 to-blue-500 text-white shadow-lg'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <BarChart3 className="h-5 w-5" />
-                <span>Progress</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('checkin')}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
-                  activeTab === 'checkin'
-                    ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <Calendar className="h-5 w-5" />
-                <span>Check-in</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('profile')}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
-                  activeTab === 'profile'
-                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <User className="h-5 w-5" />
-                <span>Profile</span>
-              </button>
-            </div>
+            ))}
           </div>
         </div>
 
         {/* Tab Content */}
-        {renderTabContent()}
+        <div className="bg-white rounded-3xl p-6 shadow-lg">
+          {renderTabContent()}
+        </div>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ClipboardCheck, ArrowRight, PlayCircle, Star, Heart, Brain } from 'lucide-react';
 import { useStore } from '../store';
+import { supabase } from '../lib/supabaseClient';
 
 const TOTAL_QUESTIONS = 21;
 
@@ -75,7 +76,7 @@ const severityRanges = {
 
 const Assessment = () => {
   const navigate = useNavigate();
-  const { currentUser, updateProgress } = useStore();
+  const { currentUser, studentProgress, updateStudentProgress, fetchStudentProgress } = useStore();
   const [started, setStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>(Array(TOTAL_QUESTIONS).fill(-1));
@@ -105,7 +106,7 @@ const Assessment = () => {
     setStarted(true);
   };
 
-  const handleAnswer = (value: number) => {
+  const handleAnswer = async (value: number) => {
     const newAnswers = [...answers];
     newAnswers[currentQuestion] = value;
     setAnswers(newAnswers);
@@ -113,19 +114,49 @@ const Assessment = () => {
     if (currentQuestion < TOTAL_QUESTIONS - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
+      // Calculate scores
       const scores = calculateScores();
-      updateProgress({
-        userId: '1', // This should come from authentication
-        topicProgress: {},
-        assessmentResults: {
-          'dass-y': {
-            completed: true,
-            responses: newAnswers,
-            date: new Date().toISOString(),
-            scores,
-          },
-        },
-      });
+
+      // --- Update student_progress in Supabase ---
+      const prevProgress = studentProgress[0] || {};
+      const prevTopicProgress = prevProgress.topic_progress || {};
+      const prevAssessmentResults = prevProgress.assessment_results || {};
+
+      // Store full assessment result (completed, responses, date, scores)
+      const updatedAssessmentResults = {
+        ...prevAssessmentResults,
+        'dass-y': {
+          completed: true,
+          responses: newAnswers,
+          date: new Date().toISOString(),
+          scores
+        }
+      };
+
+      if (currentUser?.id) {
+        await updateStudentProgress(currentUser.id, prevTopicProgress, updatedAssessmentResults);
+        await fetchStudentProgress(currentUser.id);
+
+        // --- Insert into assessment_result table ---
+        const depression_level = getScoreInterpretation(scores.depression, 'depression').toLowerCase();
+        const anxiety_level = getScoreInterpretation(scores.anxiety, 'anxiety').toLowerCase();
+        const stress_level = getScoreInterpretation(scores.stress, 'stress').toLowerCase();
+        const total_score = scores.depression + scores.anxiety + scores.stress;
+        const total_level = getScoreInterpretation(total_score, 'total').toLowerCase();
+
+        await supabase.from('assessment_result').insert([{
+          student_id: currentUser.id,
+          depression_score: scores.depression,
+          depression_level,
+          anxiety_score: scores.anxiety,
+          anxiety_level,
+          stress_score: scores.stress,
+          stress_level,
+          total_score,
+          total_level
+        }]);
+      }
+
       setShowResults(true);
     }
   };
@@ -187,7 +218,7 @@ const Assessment = () => {
                 </div>
                 
                 <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-purple-600 via-pink-500 to-blue-500 bg-clip-text text-transparent">
-                  Your Mind Check-Up! 🧠💖
+                  DASS-Y Assessment 🧠💖
                 </h1>
                 
                 <div className="bg-gradient-to-r from-blue-100 via-purple-100 to-pink-100 rounded-2xl p-6 mb-8 border-3 border-purple-200">
@@ -263,7 +294,7 @@ const Assessment = () => {
                       <h2 className="text-2xl font-bold capitalize mb-3">{scale} 📊</h2>
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-medium">Your Score: {score}</span>
-                        <span className="px-4 py-2 rounded-full font-bold text-lg">
+                        <span className="px-4 py-2 rounded-full font-bold text-lg bg-white bg-opacity-50">
                           {severity}
                         </span>
                       </div>
@@ -271,7 +302,7 @@ const Assessment = () => {
                   );
                 })}
 
-                <div className={`p-6 rounded-2xl border-4 bg-gradient-to-r from-purple-100 to-blue-100 border-purple-300`}>
+                <div className="p-6 rounded-2xl border-4 bg-gradient-to-r from-purple-100 to-blue-100 border-purple-300">
                   <div className="text-4xl mb-3">🌟</div>
                   <h2 className="text-2xl font-bold mb-3">Overall Result</h2>
                   <div className="flex justify-between items-center">

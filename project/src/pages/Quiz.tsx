@@ -165,10 +165,10 @@ const Quiz = () => {
   const [showResults, setShowResults] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const { updateProgress } = useStore();
+  const { currentUser, studentProgress, updateStudentProgress, fetchStudentProgress } = useStore();
 
-  // TODO: Replace with actual authenticated user id
-  const student_id = 1;
+  // Use the real authenticated user id
+  const student_id = currentUser?.id;
 
   if (!topicId || !quizData[topicId as keyof typeof quizData]) {
     return <div>Quiz not found</div>;
@@ -177,60 +177,67 @@ const Quiz = () => {
   const quiz = quizData[topicId as keyof typeof quizData];
   const question = quiz.questions[currentQuestion];
 
+  // Fix: handle answer selection and show results after last question
   const handleAnswerSelect = (answerIndex: number) => {
-  const newAnswers = [...selectedAnswers];
-  newAnswers[currentQuestion] = answerIndex;
-  setSelectedAnswers(newAnswers);
+    const newAnswers = [...selectedAnswers];
+    newAnswers[currentQuestion] = answerIndex;
+    setSelectedAnswers(newAnswers);
 
-  if (currentQuestion < quiz.questions.length - 1) {
-    setTimeout(() => {
-      setCurrentQuestion(currentQuestion + 1);
-    }, 500);
-  } else {
-    // Delay calculateResults slightly to allow state update
-    setTimeout(() => {
-      calculateResults(newAnswers); // Pass the updated answers manually
-    }, 500);
-  }
-};
+    if (currentQuestion < quiz.questions.length - 1) {
+      setTimeout(() => {
+        setCurrentQuestion(currentQuestion + 1);
+      }, 500);
+    } else {
+      // Show results immediately after last answer
+      setShowResults(true);
+      calculateResults(newAnswers);
+    }
+  };
 
   const calculateResults = async (answers: number[]) => {
-  const correctAnswers = answers.reduce((count, answer, index) => {
-    return count + (answer === quiz.questions[index].correctAnswer ? 1 : 0);
-  }, 0);
+    const correctAnswers = answers.reduce((count, answer, index) => {
+      return count + (answer === quiz.questions[index].correctAnswer ? 1 : 0);
+    }, 0);
 
-  updateProgress({
-    userId: '1',
-    topicProgress: {
+    // --- Update student_progress in Supabase ---
+    const prevProgress = studentProgress[0] || {};
+    const prevTopicProgress = prevProgress.topic_progress || {};
+    const prevAssessmentResults = prevProgress.assessment_results || {};
+
+    // Merge new topic progress
+    const updatedTopicProgress = {
+      ...prevTopicProgress,
       [topicId]: {
         completed: true,
         quizScore: (correctAnswers / quiz.questions.length) * 100
       }
-    },
-    assessmentResults: {}
-  });
+    };
 
-  setIsSaving(true);
-  setSaveError(null);
-
-  const { error } = await supabase.from('quiz_results').insert([
-    {
-      student_id,
-      topic_id: topicId,
-      score_percentage: ((correctAnswers / quiz.questions.length) * 100).toFixed(2),
-      correct_answers: correctAnswers,
-      total_questions: quiz.questions.length,
-      selected_answers: answers
+    if (student_id) {
+      await updateStudentProgress(student_id, updatedTopicProgress, prevAssessmentResults);
+      await fetchStudentProgress(student_id);
     }
-  ]);
 
-  setIsSaving(false);
-  if (error) {
-    setSaveError('Failed to save quiz results. Please try again.');
-  }
+    setIsSaving(true);
+    setSaveError(null);
 
-  setShowResults(true);
-};
+    // Save quiz result to quiz_results table
+    const { error } = await supabase.from('quiz_results').insert([
+      {
+        student_id,
+        topic_id: topicId,
+        score_percentage: ((correctAnswers / quiz.questions.length) * 100).toFixed(2),
+        correct_answers: correctAnswers,
+        total_questions: quiz.questions.length,
+        selected_answers: answers // <-- store the array
+      }
+    ]);
+
+    setIsSaving(false);
+    if (error) {
+      setSaveError('Failed to save quiz results. Please try again.');
+    }
+  };
 
   if (showResults) {
     const correctAnswers = selectedAnswers.reduce((count, answer, index) => {
