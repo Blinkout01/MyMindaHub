@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   BarChart3,
@@ -13,6 +13,34 @@ import {
   Award
 } from 'lucide-react';
 import { useStore } from '../store';
+import { supabase } from '../lib/supabaseClient';
+
+type Student = {
+  id: number;
+  full_name: string;
+  class: string;
+  // ...other fields if needed
+};
+
+type QuizResult = {
+  id: number;
+  student_id: number;
+  topic_id: string;
+  score_percentage: number;
+  // ...other fields if needed
+};
+
+type AssessmentResult = {
+  id: number;
+  student_id: number;
+  depression_score: number;
+  depression_level: string;
+  anxiety_score: number;
+  anxiety_level: string;
+  stress_score: number;
+  stress_level: string;
+  // ...other fields if needed
+};
 
 type Tab = 'overview' | 'students' | 'profile';
 
@@ -26,8 +54,13 @@ const Dashboard = () => {
     email: '',
     department: 'Counseling',
   });
-  const { currentUser, studentProgress, setCurrentUser } = useStore();
+  const { currentUser, setCurrentUser } = useStore();
   const navigate = useNavigate();
+
+  const [students, setStudents] = useState<Student[]>([]);
+  const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
+  const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
+  const [loading, setLoading] = useState(true);
 
   if (!currentUser || currentUser.role !== 'counselor') {
     navigate('/login');
@@ -98,96 +131,91 @@ const Dashboard = () => {
     }
   };
 
-  // Mock student data - in a real app, this would come from your database
-  const mockStudents = [
-    {
-      id: '1',
-      name: 'Alice Smith',
-      class: '5A',
-      topicsCompleted: ['emotions', 'stress'],
-      quizResults: {
-        emotions: 90,
-        stress: 85
-      },
-      assessmentScore: {
-        depression: 5,
-        anxiety: 4,
-        stress: 6
-      }
-    },
-    {
-      id: '2',
-      name: 'Bob Johnson',
-      class: '5B',
-      topicsCompleted: ['emotions'],
-      quizResults: {
-        emotions: 75
-      },
-      assessmentScore: {
-        depression: 12,
-        anxiety: 14,
-        stress: 16
-      }
-    },
-    {
-      id: '3',
-      name: 'Carol Williams',
-      class: '5A',
-      topicsCompleted: ['emotions', 'stress', 'bullying'],
-      quizResults: {
-        emotions: 95,
-        stress: 88,
-        bullying: 92
-      },
-      assessmentScore: {
-        depression: 8,
-        anxiety: 7,
-        stress: 9
-      }
-    }
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      // Fetch students
+      const { data: studentsData } = await supabase
+        .from('student')
+        .select('id, full_name, class');
+      // Fetch quiz results
+      const { data: quizData } = await supabase
+        .from('quiz_results')
+        .select('id, student_id, topic_id, score_percentage');
+      // Fetch assessment results (latest per student)
+      const { data: assessmentData } = await supabase
+        .from('assessment_result')
+        .select('id, student_id, depression_score, depression_level, anxiety_score, anxiety_level, stress_score, stress_level, created_at')
+        .order('created_at', { ascending: false });
 
-  const calculateStatistics = () => {
-    const totalStudents = mockStudents.length;
-    const safeStudents = mockStudents.filter(student => 
-      ['Normal', 'Mild'].includes(getSeverityLevel(student.assessmentScore.depression, 'depression')) &&
-      ['Normal', 'Mild'].includes(getSeverityLevel(student.assessmentScore.anxiety, 'anxiety')) &&
-      ['Normal', 'Mild'].includes(getSeverityLevel(student.assessmentScore.stress, 'stress'))
-    ).length;
+      // Only keep latest assessment per student
+      const latestAssessmentMap: { [student_id: number]: AssessmentResult } = {};
+      (assessmentData || []).forEach((a: any) => {
+        if (!latestAssessmentMap[a.student_id]) {
+          latestAssessmentMap[a.student_id] = a;
+        }
+      });
 
-    const topicsStats = {
-      emotions: 0,
-      stress: 0,
-      bullying: 0
+      setStudents(studentsData || []);
+      setQuizResults(quizData || []);
+      setAssessmentResults(Object.values(latestAssessmentMap));
+      setLoading(false);
     };
 
+    fetchData();
+  }, []);
+
+  // Helper: Get quiz results for a student
+  const getStudentQuizResults = (studentId: number) =>
+    quizResults.filter(q => q.student_id === studentId);
+
+  // Helper: Get assessment result for a student
+  const getStudentAssessment = (studentId: number) =>
+    assessmentResults.find(a => a.student_id === studentId);
+
+  // Calculate statistics for Overview
+  const calculateStatistics = () => {
+    const totalStudents = students.length;
+    let safeStudents = 0;
+    let atRiskStudents = 0;
     let totalQuizScore = 0;
     let totalQuizzes = 0;
+    const topicsStats: Record<string, number> = {};
 
-    mockStudents.forEach(student => {
-      student.topicsCompleted.forEach(topic => {
-        topicsStats[topic as keyof typeof topicsStats]++;
-        if (student.quizResults[topic]) {
-          totalQuizScore += student.quizResults[topic];
-          totalQuizzes++;
-        }
+    students.forEach(student => {
+      const assessment = getStudentAssessment(student.id);
+      if (assessment) {
+        const isSafe =
+          ['normal', 'mild'].includes(assessment.depression_level) &&
+          ['normal', 'mild'].includes(assessment.anxiety_level) &&
+          ['normal', 'mild'].includes(assessment.stress_level);
+        if (isSafe) safeStudents++;
+        else atRiskStudents++;
+      }
+      const quizzes = getStudentQuizResults(student.id);
+      quizzes.forEach(q => {
+        totalQuizScore += Number(q.score_percentage);
+        totalQuizzes++;
+        topicsStats[q.topic_id] = (topicsStats[q.topic_id] || 0) + 1;
       });
     });
 
     return {
+      totalStudents,
       safeStudents,
-      normalStudents: safeStudents,
+      atRiskStudents,
+      averageQuizScore: totalQuizzes > 0 ? Math.round(totalQuizScore / totalQuizzes) : 0,
       topicsStats,
-      averageQuizScore: totalQuizzes > 0 ? Math.round(totalQuizScore / totalQuizzes) : 0
     };
   };
 
   const stats = calculateStatistics();
 
-  const filteredStudents = mockStudents
-    .filter(student => 
+  // Filtered students for Students tab
+  const filteredStudents = students
+    .filter(student =>
       (selectedClass === 'all' || student.class === selectedClass) &&
-      (searchTerm === '' || student.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      (searchTerm === '' || student.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
   const renderOverview = () => (
@@ -197,7 +225,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-600 font-semibold">Total Students</p>
-              <h3 className="text-2xl font-bold">{mockStudents.length}</h3>
+              <h3 className="text-2xl font-bold">{stats.totalStudents}</h3>
             </div>
             <Users className="h-8 w-8 text-blue-600" />
           </div>
@@ -217,7 +245,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-red-600 font-semibold">At-Risk Students</p>
-              <h3 className="text-2xl font-bold">{mockStudents.length - stats.safeStudents}</h3>
+              <h3 className="text-2xl font-bold">{stats.atRiskStudents}</h3>
             </div>
             <AlertTriangle className="h-8 w-8 text-red-600" />
           </div>
@@ -240,17 +268,21 @@ const Dashboard = () => {
           Topics Completion Statistics
         </h2>
         <div className="space-y-4">
-          {Object.entries(stats.topicsStats).map(([topic, count]) => (
-            <div key={topic} className="flex items-center justify-between">
-              <span className="capitalize">{topic}</span>
+          {[
+            { key: 'emotions', label: 'Understanding Emotions' },
+            { key: 'stress', label: 'Stress Management' },
+            { key: 'bullying', label: 'Bullying Prevention' }
+          ].map(({ key, label }) => (
+            <div key={key} className="flex items-center justify-between">
+              <span className="capitalize">{label}</span>
               <div className="flex items-center">
                 <div className="w-48 h-2 bg-gray-200 rounded-full mr-3">
-                  <div 
+                  <div
                     className="h-2 bg-purple-600 rounded-full"
-                    style={{ width: `${(count / mockStudents.length) * 100}%` }}
+                    style={{ width: `${((stats.topicsStats[key] || 0) / (stats.totalStudents || 1)) * 100}%` }}
                   />
                 </div>
-                <span className="text-sm text-gray-600">{count} students</span>
+                <span className="text-sm text-gray-600">{stats.topicsStats[key] || 0} students</span>
               </div>
             </div>
           ))}
@@ -299,43 +331,65 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredStudents.map((student) => (
-                <tr key={student.id} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-4">{student.name}</td>
-                  <td className="py-3 px-4">{student.class}</td>
-                  <td className="py-3 px-4">
-                    <div className="space-y-2">
-                      {student.topicsCompleted.map((topic) => (
-                        <div key={topic} className="flex items-center space-x-2">
-                          <span className="inline-block px-2 py-1 text-sm bg-purple-100 text-purple-700 rounded-full">
-                            {topic}
-                          </span>
-                          <span className="text-sm font-medium">
-                            {student.quizResults[topic]}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="space-y-2">
-                      {(['depression', 'anxiety', 'stress'] as const).map((type) => {
-                        const score = student.assessmentScore[type];
-                        const severity = getSeverityLevel(score, type);
-                        const colorClass = getSeverityColor(severity);
-                        return (
-                          <div key={type} className="flex items-center justify-between">
-                            <span className="text-sm capitalize">{type}:</span>
-                            <span className={`text-sm px-2 py-1 rounded-full ${colorClass}`}>
-                              {severity} ({score})
+              {filteredStudents.map((student) => {
+                const quizzes = getStudentQuizResults(student.id);
+                const assessment = getStudentAssessment(student.id);
+
+                // Order topics: emotions, stress, bullying, then others
+                const topicOrder = ['emotions', 'stress', 'bullying'];
+                const sortedQuizzes = [
+                  ...topicOrder
+                    .map(topic => quizzes.find(q => q.topic_id === topic))
+                    .filter(Boolean),
+                  ...quizzes.filter(
+                    q => !topicOrder.includes(q.topic_id)
+                  ),
+                ];
+
+                return (
+                  <tr key={student.id} className="border-b hover:bg-gray-50">
+                    <td className="py-3 px-4">{student.full_name}</td>
+                    <td className="py-3 px-4">{student.class}</td>
+                    <td className="py-3 px-4">
+                      <div className="space-y-2">
+                        {sortedQuizzes.length > 0 ? sortedQuizzes.map((quiz) => (
+                          <div key={quiz.topic_id} className="flex items-center space-x-2">
+                            <span className="inline-block px-2 py-1 text-sm bg-purple-100 text-purple-700 rounded-full">
+                              {quiz.topic_id}
+                            </span>
+                            <span className="text-sm font-medium">
+                              {quiz.score_percentage}%
                             </span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        )) : <span className="text-gray-400 text-sm">No quizzes</span>}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      {assessment ? (
+                        <div className="space-y-2">
+                          {(['depression', 'anxiety', 'stress'] as const).map((type) => {
+                            const level = assessment[`${type}_level`] as string;
+                            const score = assessment[`${type}_score`] as number;
+                            const colorClass = getSeverityColor(
+                              level.charAt(0).toUpperCase() + level.slice(1)
+                            );
+                            return (
+                              <div key={type} className="flex items-center justify-between">
+                                <span className="text-sm capitalize">{type}:</span>
+                                <span className={`text-sm px-2 py-1 rounded-full ${colorClass}`}>
+                                  {level.charAt(0).toUpperCase() + level.slice(1)} ({score})
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">No assessment</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

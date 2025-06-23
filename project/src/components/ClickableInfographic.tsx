@@ -64,18 +64,22 @@ const ClickableInfographic: React.FC<ClickableInfographicProps> = ({
               onClick={() => handlePointClick(point)}
               className={`absolute transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-4 border-white shadow-xl transition-all duration-300 hover:scale-125 ${
                 viewedPoints.has(point.id)
-                  ? 'bg-green-400 animate-pulse'
-                  : 'bg-yellow-400 animate-bounce'
+                  ? 'bg-green-400'
+                  : selectedPoint
+                    ? 'bg-yellow-400'
+                    : 'bg-yellow-400 animate-bounce'
               }`}
               style={{
                 left: `${point.x}%`,
                 top: `${point.y}%`
               }}
+              disabled={!!selectedPoint}
             >
               <div className="text-2xl">{point.emoji}</div>
-              
               {/* Ripple effect */}
-              <div className="absolute inset-0 rounded-full border-4 border-white animate-ping opacity-75"></div>
+              {!selectedPoint && !viewedPoints.has(point.id) && (
+                <div className="absolute inset-0 rounded-full border-4 border-white animate-ping opacity-75"></div>
+              )}
             </button>
           ))}
 
@@ -88,7 +92,7 @@ const ClickableInfographic: React.FC<ClickableInfographicProps> = ({
         {/* Info Modal */}
         {selectedPoint && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 max-w-md w-full border-4 border-purple-300 shadow-2xl animate-bounce">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full border-4 border-purple-300 shadow-2xl">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center space-x-3">
                   <div className="text-4xl">{selectedPoint.emoji}</div>

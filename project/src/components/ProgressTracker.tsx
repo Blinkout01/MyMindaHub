@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Brain, Heart, Shield, CheckCircle, Clock, Trophy, Star, Target } from 'lucide-react';
 import { useStore } from '../store';
@@ -18,19 +18,55 @@ interface TopicProgress {
 }
 
 const ProgressTracker = () => {
-  const { currentUser, studentProgress, fetchStudentProgress, updateStudentProgress } = useStore();
+  const { currentUser, fetchStudentProgress } = useStore();
+  const [quizResults, setQuizResults] = useState<any[]>([]);
+  const [assessmentResult, setAssessmentResult] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch progress on mount or when user changes
+  // Fetch progress, quiz results, and assessment result on mount or user change
   useEffect(() => {
-    if (currentUser?.id) {
-      fetchStudentProgress(currentUser.id);
-    }
+    const fetchAllProgress = async () => {
+      if (!currentUser?.id) return;
+      setLoading(true);
+      await fetchStudentProgress(currentUser.id);
+
+      // Fetch quiz results for this student
+      const { data: quizData } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('student_id', currentUser.id);
+
+      setQuizResults(quizData || []);
+
+      // Fetch latest assessment result for this student
+      const { data: assessmentData } = await supabase
+        .from('assessment_result')
+        .select('*')
+        .eq('student_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      setAssessmentResult(assessmentData || null);
+      setLoading(false);
+    };
+
+    fetchAllProgress();
   }, [currentUser, fetchStudentProgress]);
 
   // Get current user's progress
-  const userProgress = studentProgress[0];
-  
-  // Define topics with their progress status
+  const userProgress = useStore.getState().studentProgress[0];
+
+  // Helper: get quiz score for a topic
+  const getQuizScore = (topicId: string) => {
+    const quiz = quizResults.find(q => q.topic_id === topicId);
+    return quiz ? Number(quiz.score_percentage) : null;
+  };
+  // A topic is "learned" if a quiz has been attempted for it
+  const isTopicLearned = (topicId: string) => quizResults.some(q => q.topic_id === topicId);
+  const isQuizCompleted = (topicId: string) => getQuizScore(topicId) !== null;
+
+  // Define topics with their progress status (from quiz results)
   const topics: TopicProgress[] = [
     {
       id: 'emotions',
@@ -40,9 +76,9 @@ const ProgressTracker = () => {
       bgGradient: 'from-blue-100 to-blue-200',
       borderColor: 'border-blue-300',
       emoji: '😊',
-      completed: userProgress?.topic_progress?.emotions?.completed || false,
-      quizCompleted: typeof userProgress?.topic_progress?.emotions?.quizScore === 'number' && userProgress?.topic_progress?.emotions?.quizScore !== null,
-      quizScore: userProgress?.topic_progress?.emotions?.quizScore ?? null
+      completed: isTopicLearned('emotions'),
+      quizCompleted: isQuizCompleted('emotions'),
+      quizScore: getQuizScore('emotions')
     },
     {
       id: 'stress',
@@ -52,9 +88,9 @@ const ProgressTracker = () => {
       bgGradient: 'from-pink-100 to-pink-200',
       borderColor: 'border-pink-300',
       emoji: '🧘‍♀️',
-      completed: userProgress?.topic_progress?.stress?.completed || false,
-      quizCompleted: typeof userProgress?.topic_progress?.stress?.quizScore === 'number' && userProgress?.topic_progress?.stress?.quizScore !== null,
-      quizScore: userProgress?.topic_progress?.stress?.quizScore ?? null
+      completed: isTopicLearned('stress'),
+      quizCompleted: isQuizCompleted('stress'),
+      quizScore: getQuizScore('stress')
     },
     {
       id: 'bullying',
@@ -64,9 +100,9 @@ const ProgressTracker = () => {
       bgGradient: 'from-purple-100 to-purple-200',
       borderColor: 'border-purple-300',
       emoji: '🛡️',
-      completed: userProgress?.topic_progress?.bullying?.completed || false,
-      quizCompleted: typeof userProgress?.topic_progress?.bullying?.quizScore === 'number' && userProgress?.topic_progress?.bullying?.quizScore !== null,
-      quizScore: userProgress?.topic_progress?.bullying?.quizScore ?? null
+      completed: isTopicLearned('bullying'),
+      quizCompleted: isQuizCompleted('bullying'),
+      quizScore: getQuizScore('bullying')
     }
   ];
 
@@ -75,9 +111,9 @@ const ProgressTracker = () => {
   const completedTopics = topics.filter(t => t.completed).length;
   const completedQuizzes = topics.filter(t => t.quizCompleted).length;
   const overallProgress = Math.round(((completedTopics + completedQuizzes) / (totalTopics * 2)) * 100);
-  
-  // Check if assessment is completed
-  const assessmentCompleted = userProgress?.assessment_results?.['dass-y']?.completed || false;
+
+  // Assessment completion from assessment_result table
+  const assessmentCompleted = !!assessmentResult;
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600 bg-green-100 border-green-300';
@@ -92,6 +128,14 @@ const ProgressTracker = () => {
     if (score >= 70) return '👍';
     return '💪';
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <span className="text-lg text-gray-500">Loading progress...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
