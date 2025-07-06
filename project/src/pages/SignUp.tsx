@@ -54,15 +54,15 @@ const Register = () => {
         return;
       }
 
-      setCurrentUser({
+      /*setCurrentUser({
         id: data.id,
         name: data.full_name,
         role: 'student',
         class: data.class,
         gender: data.gender,
         username: data.username,
-      });
-      navigate('/topics');
+      });*/
+      navigate('/');
     } catch (err) {
       setError('Sign up failed. Please try again.');
     }
