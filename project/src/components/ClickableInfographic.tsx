@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Info, X } from 'lucide-react';
+import * as React from 'react';
+import { X } from 'lucide-react';
 
 interface InfoPoint {
   id: string;
@@ -22,9 +22,9 @@ const ClickableInfographic: React.FC<ClickableInfographicProps> = ({
   backgroundImage,
   infoPoints,
   onAllPointsViewed
-}) => {
-  const [selectedPoint, setSelectedPoint] = useState<InfoPoint | null>(null);
-  const [viewedPoints, setViewedPoints] = useState<Set<string>>(new Set());
+}: ClickableInfographicProps) => {
+  const [selectedPoint, setSelectedPoint] = React.useState<InfoPoint | null>(null);
+  const [viewedPoints, setViewedPoints] = React.useState<Set<string>>(new Set());
 
   const handlePointClick = (point: InfoPoint) => {
     setSelectedPoint(point);
@@ -58,7 +58,7 @@ const ClickableInfographic: React.FC<ClickableInfographicProps> = ({
           <div className="absolute inset-0 bg-black/20"></div>
 
           {/* Info Points */}
-          {infoPoints.map(point => (
+          {infoPoints.map((point: InfoPoint) => (
             <button
               key={point.id}
               onClick={() => handlePointClick(point)}

@@ -1,21 +1,19 @@
-import React, { useState } from 'react';
+import * as React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Star, Heart, Sparkles } from 'lucide-react';
-import { useStore } from '../store';
 import { supabase } from '../lib/supabaseClient';
 
 const Register = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = React.useState({
     fullName: '',
     username: '',
     password: '',
     gender: '',
     class: ''
   });
-  const [error, setError] = useState('');
+  const [error, setError] = React.useState('');
   
   const navigate = useNavigate();
-  const setCurrentUser = useStore((state) => state.setCurrentUser);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -31,7 +29,7 @@ const Register = () => {
 
     try {
       // Insert new student into Supabase
-      const { data, error: dbError } = await supabase
+      const { error: dbError } = await supabase
         .from('student')
         .insert([
           {
@@ -41,9 +39,7 @@ const Register = () => {
             gender: formData.gender.charAt(0).toUpperCase() + formData.gender.slice(1).toLowerCase(),
             class: formData.class
           }
-        ])
-        .select()
-        .single();
+        ]);
 
       if (dbError) {
         if (dbError.code === '23505') {
@@ -54,16 +50,8 @@ const Register = () => {
         return;
       }
 
-      /*setCurrentUser({
-        id: data.id,
-        name: data.full_name,
-        role: 'student',
-        class: data.class,
-        gender: data.gender,
-        username: data.username,
-      });*/
       navigate('/');
-    } catch (err) {
+    } catch {
       setError('Sign up failed. Please try again.');
     }
   };

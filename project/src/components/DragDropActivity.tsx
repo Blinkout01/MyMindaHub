@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import * as React from 'react';
 import { CheckCircle, RotateCcw } from 'lucide-react';
 
 interface DragDropItem {
@@ -28,7 +28,7 @@ const DragDropActivity: React.FC<DragDropActivityProps> = ({
   items,
   zones,
   onComplete
-}) => {
+}: DragDropActivityProps) => {
   // Shuffle items on first render
   const shuffle = <T,>(array: T[]): T[] => {
     const arr = [...array];
@@ -39,24 +39,24 @@ const DragDropActivity: React.FC<DragDropActivityProps> = ({
     return arr;
   };
 
-  const [draggedItem, setDraggedItem] = useState<DragDropItem | null>(null);
-  const [droppedItems, setDroppedItems] = useState<{ [zoneId: string]: DragDropItem[] }>({});
-  const [availableItems, setAvailableItems] = useState<DragDropItem[]>(() => shuffle(items));
-  const [isComplete, setIsComplete] = useState(false);
+  const [draggedItem, setDraggedItem] = React.useState<DragDropItem | null>(null);
+  const [droppedItems, setDroppedItems] = React.useState<{ [zoneId: string]: DragDropItem[] }>({});
+  const [availableItems, setAvailableItems] = React.useState<DragDropItem[]>(() => shuffle(items));
+  const [isComplete, setIsComplete] = React.useState(false);
 
   const handleDragStart = (item: DragDropItem) => {
     setDraggedItem(item);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, zoneId: string) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, zoneId: string) => {
     e.preventDefault();
     if (!draggedItem) return;
 
-    const zone = zones.find(z => z.id === zoneId);
+    const zone = zones.find((z: DragDropZone) => z.id === zoneId);
     if (!zone || !zone.acceptedCategories.includes(draggedItem.category)) {
       // Wrong drop - animate rejection
       return;
@@ -106,7 +106,7 @@ const DragDropActivity: React.FC<DragDropActivityProps> = ({
           <span>Items to Sort</span>
         </h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {availableItems.map(item => (
+          {availableItems.map((item: DragDropItem) => (
             <div
               key={item.id}
               draggable
@@ -122,7 +122,7 @@ const DragDropActivity: React.FC<DragDropActivityProps> = ({
 
       {/* Drop Zones */}
       <div className="grid md:grid-cols-2 gap-6">
-        {zones.map(zone => (
+        {zones.map((zone: DragDropZone) => (
           <div
             key={zone.id}
             onDragOver={handleDragOver}
@@ -141,7 +141,7 @@ const DragDropActivity: React.FC<DragDropActivityProps> = ({
             </div>
 
             <div className="space-y-2">
-              {(droppedItems[zone.id] || []).map(item => (
+              {(droppedItems[zone.id] || []).map((item: DragDropItem) => (
                 <div
                   key={item.id}
                   className="bg-white p-3 rounded-xl border-2 border-green-300 text-center animate-bounce"

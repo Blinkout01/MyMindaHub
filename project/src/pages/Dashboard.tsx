@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   BarChart3,
@@ -19,7 +19,6 @@ type Student = {
   id: number;
   full_name: string;
   class: string;
-  // ...other fields if needed
 };
 
 type QuizResult = {
@@ -27,7 +26,6 @@ type QuizResult = {
   student_id: number;
   topic_id: string;
   score_percentage: number;
-  // ...other fields if needed
 };
 
 type AssessmentResult = {
@@ -39,33 +37,48 @@ type AssessmentResult = {
   anxiety_level: string;
   stress_score: number;
   stress_level: string;
-  // ...other fields if needed
 };
 
 type Tab = 'overview' | 'students' | 'profile';
 
-const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const [selectedClass, setSelectedClass] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [userInfo, setUserInfo] = useState({
+// Define a type for the user object in your store
+type CounselorUser = {
+  name: string;
+  email: string;
+  role: string;
+  // add other properties as needed
+};
+
+type StoreType = {
+  currentUser: CounselorUser | null;
+  setCurrentUser: (user: CounselorUser | null) => void;
+};
+
+const Dashboard: React.FC = () => {
+  const [activeTab, setActiveTab] = React.useState<Tab>('overview');
+  const [selectedClass, setSelectedClass] = React.useState<string>('all');
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [userInfo, setUserInfo] = React.useState({
     name: '',
     email: '',
     department: 'Counseling',
   });
-  const { currentUser, setCurrentUser } = useStore();
+
+  // Use the StoreType instead of any
+  const { currentUser, setCurrentUser } = useStore() as StoreType;
   const navigate = useNavigate();
 
-  const [students, setStudents] = useState<Student[]>([]);
-  const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
-  const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [students, setStudents] = React.useState<Student[]>([]);
+  const [quizResults, setQuizResults] = React.useState<QuizResult[]>([]);
+  const [assessmentResults, setAssessmentResults] = React.useState<AssessmentResult[]>([]);
+  // Remove unused loading variable
 
-  if (!currentUser || currentUser.role !== 'counselor') {
-    navigate('/login');
-    return null;
-  }
+  React.useEffect(() => {
+    if (!currentUser || currentUser.role !== 'counselor') {
+      navigate('/login');
+    }
+  }, [currentUser, navigate]);
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -74,44 +87,11 @@ const Dashboard = () => {
 
   const handleSaveProfile = () => {
     setCurrentUser({
-      ...currentUser,
+      ...currentUser!,
       name: userInfo.name,
       email: userInfo.email
     });
     setIsEditing(false);
-  };
-
-  const getSeverityLevel = (score: number, type: 'depression' | 'anxiety' | 'stress') => {
-    const ranges = {
-      depression: {
-        normal: [0, 6],
-        mild: [7, 8],
-        moderate: [9, 13],
-        severe: [14, 16],
-        extremelySevere: [17, Infinity]
-      },
-      anxiety: {
-        normal: [0, 5],
-        mild: [6, 7],
-        moderate: [8, 12],
-        severe: [13, 15],
-        extremelySevere: [16, Infinity]
-      },
-      stress: {
-        normal: [0, 11],
-        mild: [12, 13],
-        moderate: [14, 16],
-        severe: [17, 18],
-        extremelySevere: [19, Infinity]
-      }
-    };
-
-    const range = ranges[type];
-    if (score <= range.normal[1]) return 'Normal';
-    if (score <= range.mild[1]) return 'Mild';
-    if (score <= range.moderate[1]) return 'Moderate';
-    if (score <= range.severe[1]) return 'Severe';
-    return 'Extremely Severe';
   };
 
   const getSeverityColor = (severity: string) => {
@@ -131,9 +111,8 @@ const Dashboard = () => {
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       // Fetch students
       const { data: studentsData } = await supabase
         .from('student')
@@ -150,7 +129,7 @@ const Dashboard = () => {
 
       // Only keep latest assessment per student
       const latestAssessmentMap: { [student_id: number]: AssessmentResult } = {};
-      (assessmentData || []).forEach((a: any) => {
+      (assessmentData || []).forEach((a: AssessmentResult & { created_at: string }) => {
         if (!latestAssessmentMap[a.student_id]) {
           latestAssessmentMap[a.student_id] = a;
         }
@@ -159,7 +138,6 @@ const Dashboard = () => {
       setStudents(studentsData || []);
       setQuizResults(quizData || []);
       setAssessmentResults(Object.values(latestAssessmentMap));
-      setLoading(false);
     };
 
     fetchData();
@@ -340,7 +318,7 @@ const Dashboard = () => {
                 const sortedQuizzes = [
                   ...topicOrder
                     .map(topic => quizzes.find(q => q.topic_id === topic))
-                    .filter(Boolean),
+                    .filter((q): q is QuizResult => q !== undefined),
                   ...quizzes.filter(
                     q => !topicOrder.includes(q.topic_id)
                   ),
